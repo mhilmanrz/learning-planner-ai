@@ -55,8 +55,8 @@ class Tasks {
 
   async findByGoalId(goalId) {
     const result = await db.query(
-      `SELECT * FROM tasks WHERE goal_id = $1 ORDER BY planned_date ASC`,
-      [goalId]
+      'SELECT * FROM tasks WHERE goal_id = $1 ORDER BY planned_date ASC',
+      [goalId],
     );
     return result.rows;
   }

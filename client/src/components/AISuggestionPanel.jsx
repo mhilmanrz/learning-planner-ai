@@ -219,7 +219,7 @@ export default function AISuggestionPanel({ goalId, weekStart, onAccept }) {
             <div key={i} className='bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 flex items-center gap-3 opacity-70'>
               <CheckCircle2 className='text-emerald-400 flex-shrink-0' size={20} />
               <p className='text-emerald-300 text-sm font-medium'>
-                "{task.title}" ditambahkan ke jadwal
+                &quot;{task.title}&quot; ditambahkan ke jadwal
               </p>
             </div>
           );
