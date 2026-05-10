@@ -36,7 +36,7 @@ export default function GoalCard({ id, title, deadline, taskTotal }) {
         onClick={() => navigate(`/goals/${id}`)}
         className='mt-1 flex items-center justify-center gap-1.5 w-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 hover:text-indigo-300 rounded-xl px-3 py-2 text-xs font-medium transition-all'
       >
-        Lihat Detail &amp; Saran AI
+        {taskTotal > 0 ? 'Lihat Detail' : 'Lihat Detail & Saran AI'}
         <ArrowRight size={12} />
       </button>
     </div>

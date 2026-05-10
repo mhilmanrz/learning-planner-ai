@@ -128,6 +128,7 @@ export default function Goals() {
                 id={g.id}
                 title={g.title}
                 deadline={g.deadline}
+                taskTotal={g.task_total}
               />
             </div>
           ))}

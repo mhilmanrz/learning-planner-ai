@@ -11,6 +11,7 @@ import Calendar from './pages/Calendar.jsx';
 import Progress from './pages/Progress.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -18,24 +19,26 @@ function ProtectedRoute({ children }) {
 }
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path='/login' element={<Login />} />
-        <Route path='/register' element={<Register />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path='/' element={<Dashboard />} />
-          <Route path='/goals' element={<Goals />} />
-          <Route path='/goals/:id' element={<GoalDetail />} />
-          <Route path='/calendar' element={<Calendar />} />
-          <Route path='/progress' element={<Progress />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/login' element={<Login />} />
+          <Route path='/register' element={<Register />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path='/' element={<Dashboard />} />
+            <Route path='/goals' element={<Goals />} />
+            <Route path='/goals/:id' element={<GoalDetail />} />
+            <Route path='/calendar' element={<Calendar />} />
+            <Route path='/progress' element={<Progress />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
