@@ -52,6 +52,16 @@ class Tasks {
     );
     return result.rows;
   }
+
+  async getTasksByGoalId(goalId) {
+    const result = await db.query(
+      `
+SELECT * FROM tasks where goal_id = $1
+`,
+      [goalId],
+    );
+    return result.rows;
+  }
 }
 
 module.exports = { Tasks: new Tasks() };

@@ -44,4 +44,18 @@ router.post('/', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+
+router.get('/:goal_id', authenticate, async (req, res, next) => {
+  try {
+    const tasks = await Tasks.getTasksByGoalId(req.params.goal_id);
+
+    if (!tasks) {
+      return next(new InvariantError('Gagal loading task'));
+    }
+
+    res.status(200).json(tasks);
+  } catch (error) {
+    next(error);
+  }
+});
 module.exports = router;
