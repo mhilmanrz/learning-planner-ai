@@ -42,6 +42,7 @@ export default function GoalDetail() {
   const [loadingGoal, setLoadingGoal] = useState(true);
   const [errorGoal, setErrorGoal]     = useState(null);
   const [acceptedTasks, setAcceptedTasks] = useState([]);
+  const [hasInitialTasks, setHasInitialTasks] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState({});
 
   function toggleExpand(taskId) {
@@ -57,6 +58,7 @@ export default function GoalDetail() {
       .then(([goalData, tasksData]) => {
         setGoal(goalData);
         setAcceptedTasks(tasksData);
+        setHasInitialTasks(tasksData.length > 0);
       })
       .catch((err) => setErrorGoal(err.message))
       .finally(() => setLoadingGoal(false));
@@ -142,7 +144,7 @@ export default function GoalDetail() {
       </div>
 
       {/* AI Suggestion Section */}
-      {acceptedTasks.length === 0 && (
+      {!hasInitialTasks && (
         <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-6'>
           <div className='flex items-center gap-2 mb-5'>
             <Sparkles className='text-indigo-400' size={18} />
