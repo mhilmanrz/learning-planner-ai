@@ -15,9 +15,10 @@ export function getThisMonday() {
  * @returns {string} - Senin minggu tersebut, format YYYY-MM-DD
  */
 export function snapToMonday(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00'); // hindari timezone shift
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const day = date.getDay();
+  const diff = day === 0 ? 1 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date.toISOString().split('T')[0];
 }

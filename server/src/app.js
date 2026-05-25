@@ -20,7 +20,7 @@ app.use(requestLogger);
 
 app.use('/health', requestLogger, healthRoutes);
 app.use('/metrics', requestLogger, metricsRoutes);
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/tasks', taskRoutes);

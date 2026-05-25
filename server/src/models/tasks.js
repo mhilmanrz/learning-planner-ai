@@ -40,18 +40,7 @@ class Tasks {
     return result.rows[0];
   }
 
-  async findByWeek(userId, weekStart) {
-    const result = await db.query(
-      `SELECT t.title, t.planned_date, t.planned_slot
-        FROM tasks t
-        LEFT JOIN goals g ON g.id = t.goal_id
-        WHERE g.user_id = $1
-          AND t.planned_date >= $2
-          AND t.planned_date < $2 + INTERVAL '7 days'`,
-      [userId, weekStart],
-    );
-    return result.rows;
-  }
+
 
   async findByWeekStart(userId, weekStart, weekEnd) {
     const result = await db.query(
@@ -64,12 +53,40 @@ class Tasks {
     return result.rows;
   }
 
-  async findByGoalId(goalId) {
+  /** Semua task milik goal — ownership di-check via JOIN goals */
+  async findByGoalId(goalId, userId) {
     const result = await db.query(
-      'SELECT * FROM tasks WHERE goal_id = $1 ORDER BY planned_date ASC',
-      [goalId],
+      `SELECT t.* FROM tasks t
+        INNER JOIN goals g ON g.id = t.goal_id
+        WHERE t.goal_id = $1 AND g.user_id = $2
+        ORDER BY t.planned_date ASC, t.planned_slot ASC`,
+      [goalId, userId],
     );
     return result.rows;
+  }
+
+  /** Task milik satu goal dalam rentang minggu tertentu */
+  async findByGoalAndWeek(goalId, userId, weekStart, weekEnd) {
+    const result = await db.query(
+      `SELECT t.* FROM tasks t
+        INNER JOIN goals g ON g.id = t.goal_id
+        WHERE t.goal_id = $1 AND g.user_id = $2
+          AND t.planned_date BETWEEN $3 AND $4
+        ORDER BY t.planned_date ASC, t.planned_slot ASC`,
+      [goalId, userId, weekStart, weekEnd],
+    );
+    return result.rows;
+  }
+
+  async updateStatus(id, userId, status) {
+    const result = await db.query(
+      `UPDATE tasks SET status = $1
+       WHERE id = $2
+         AND goal_id IN (SELECT id FROM goals WHERE user_id = $3)
+       RETURNING *`,
+      [status, id, userId],
+    );
+    return result.rows[0];
   }
 }
 

@@ -14,6 +14,8 @@ export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [title, setTitle] = useState('');
   const [weekStart, setWeekStart] = useState(getThisMonday);
+  const [createError, setCreateError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,13 +24,19 @@ export default function Goals() {
 
   async function handleCreate(e) {
     e.preventDefault();
-
-    const newGoal = await api.post('/goals', { title });
-
-    setGoals([newGoal, ...goals]);
-    setTitle('');
-    // Langsung navigasi ke halaman detail dengan week_start → trigger AI suggestion flow
-    navigate(`/goals/${newGoal.id}?week_start=${weekStart}`);
+    setCreateError(null);
+    setSubmitting(true);
+    try {
+      const newGoal = await api.post('/goals', { title });
+      setGoals([newGoal, ...goals]);
+      setTitle('');
+      // Langsung navigasi ke halaman detail dengan week_start → trigger AI suggestion flow
+      navigate(`/goals/${newGoal.id}?week_start=${weekStart}`);
+    } catch (err) {
+      setCreateError(err.message || 'Gagal membuat goal. Coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleWeekStartChange(e) {
@@ -92,13 +100,21 @@ export default function Goals() {
               )}
             </div>
 
+          {/* Error feedback */}
+          {createError && (
+            <p className='text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2'>
+              ⚠️ {createError}
+            </p>
+          )}
+
             <button
               id='create-goal-btn'
               type='submit'
-              className='sm:self-end bg-indigo-500 hover:bg-indigo-400 active:scale-95 transition-all rounded-2xl px-6 py-3 font-semibold flex items-center justify-center gap-2 whitespace-nowrap'
+              disabled={submitting}
+              className='sm:self-end bg-indigo-500 hover:bg-indigo-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all rounded-2xl px-6 py-3 font-semibold flex items-center justify-center gap-2 whitespace-nowrap'
             >
               <Plus size={18} />
-              Tambah Goal
+              {submitting ? 'Menyimpan...' : 'Tambah Goal'}
             </button>
           </div>
         </form>
@@ -132,7 +148,15 @@ export default function Goals() {
               </p>
 
               <h2 className='text-3xl font-bold mt-2'>
-                Konsisten
+                {goals.length > 0
+                  ? (() => {
+                      const totalDone = goals.reduce((s, g) => s + (g.task_done_count ?? 0), 0);
+                      const totalAll  = goals.reduce((s, g) => s + (g.task_total ?? 0), 0);
+                      return totalAll > 0
+                        ? `${Math.round((totalDone / totalAll) * 100)}%`
+                        : '–';
+                    })()
+                  : '–'}
               </h2>
             </div>
 

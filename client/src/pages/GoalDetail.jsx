@@ -24,6 +24,17 @@ const SLOT_META = {
   evening:   { label: 'Malam', Icon: Moon,   color: 'text-indigo-400',  bg: 'bg-indigo-500/10' },
 };
 
+/** Format 'YYYY-MM-DD' atau ISO string ke tanggal Indonesia tanpa timezone shift */
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  // Ambil hanya bagian YYYY-MM-DD, hindari konversi UTC
+  const plain = String(dateStr).split('T')[0];
+  const [y, m, d] = plain.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
 
 
 export default function GoalDetail() {
@@ -38,6 +49,7 @@ export default function GoalDetail() {
   const [acceptedTasks, setAcceptedTasks] = useState([]);
   const [hasInitialTasks, setHasInitialTasks] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState({});
+  const [showAIPanel, setShowAIPanel] = useState(false);
 
   function toggleExpand(taskId) {
     setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -45,18 +57,16 @@ export default function GoalDetail() {
 
   useEffect(() => {
     setLoadingGoal(true);
-    Promise.all([
-      api.get(`/goals/${id}`),
-      api.get(`/tasks?goal_id=${id}&week_start=${weekStart}`)
-    ])
-      .then(([goalData, tasksData]) => {
+    api.get(`/goals/${id}`)
+      .then((goalData) => {
+        const tasks = goalData.tasks ?? [];
         setGoal(goalData);
-        setAcceptedTasks(tasksData);
-        setHasInitialTasks(tasksData.length > 0);
+        setAcceptedTasks(tasks);
+        setHasInitialTasks(tasks.length > 0);
       })
       .catch((err) => setErrorGoal(err.message))
       .finally(() => setLoadingGoal(false));
-  }, [id, weekStart]);
+  }, [id]);
 
   function handleTaskAccepted(task) {
     setAcceptedTasks((prev) => [...prev, task]);
@@ -136,8 +146,8 @@ export default function GoalDetail() {
         </div>
       </div>
 
-      {/* AI Suggestion Section */}
-      {!hasInitialTasks && (
+      {/* AI Suggestion Section — tampil saat belum ada task, ATAU user klik "Perbarui" */}
+      {(!hasInitialTasks || showAIPanel) && (
         <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-6'>
           <div className='flex items-center gap-2 mb-5'>
             <Sparkles className='text-indigo-400' size={18} />
@@ -163,6 +173,13 @@ export default function GoalDetail() {
             <h2 className='text-base font-semibold text-white'>
               Task yang Diterima ({acceptedTasks.length})
             </h2>
+            <button
+              onClick={() => setShowAIPanel((prev) => !prev)}
+              className='ml-auto flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-full px-3 py-1.5 transition-all'
+            >
+              <Sparkles size={12} />
+              {showAIPanel ? 'Tutup AI' : 'Perbarui Rencana AI'}
+            </button>
           </div>
           <ul className='space-y-2'>
             {acceptedTasks.map((task) => {
@@ -211,7 +228,7 @@ export default function GoalDetail() {
                           </span>
                           {task.planned_date && (
                             <span className='inline-flex items-center gap-1.5 bg-white/5 rounded-full px-3 py-1 text-slate-400'>
-                              📅 {task.planned_date}
+                              📅 {formatDate(task.planned_date)}
                             </span>
                           )}
                         </div>
@@ -220,7 +237,7 @@ export default function GoalDetail() {
                     
                     {!isExpanded && (
                       <p className='text-xs text-slate-400 mt-1.5'>
-                        {task.planned_date} · {task.duration_estimate} menit
+                        {formatDate(task.planned_date)} · {task.duration_estimate} menit
                       </p>
                     )}
                   </div>

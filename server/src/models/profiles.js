@@ -28,8 +28,8 @@ class Profiles {
       `UPDATE profiles SET
         timezone = COALESCE($1, timezone),
         preferred_time = COALESCE($2, preferred_time),
-        weekly_target_hours = COALESCE($3, weekly_target_hours )
-        availability = COALESCE($4, availability )
+        weekly_target_hours = COALESCE($3, weekly_target_hours),
+        availability = COALESCE($4, availability)
         WHERE user_id = $5 RETURNING *`,
       [timezone, preferredTime, weeklyTargetHours, availability, userId],
     );
