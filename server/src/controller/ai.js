@@ -2,10 +2,11 @@ const Goals = require('../models/goals');
 const Profiles = require('../models/profiles');
 const Tasks = require('../models/tasks');
 const AIRecommendations = require('../models/ai_recommendations');
-const { NotFoundError, UnprocessableEntityError } = require('../exceptions');
+const ProgressSnapshots = require('../models/progress_snapshots');
+const { NotFoundError, UnprocessableEntityError, ClientError } = require('../exceptions');
 const { callLLM, validateAIOutput } = require('../services/llm');
-const { getWeekEnd } = require('../utils/week');
 const logger = require('../utils/logger');
+const { getWeekEnd, getCurrentWeekStart, getCurrentWeek } = require('../utils/week');
 
 const createSuggestion = async (req, res, next) => {
   try {
@@ -24,7 +25,7 @@ const createSuggestion = async (req, res, next) => {
     const existingTasks = await Tasks.findByWeekStart(req.user.id, data.week_start, weekEnd);
 
     const context = {
-      week_start: data.week_start,   // ← Gemini HARUS tahu rentang ini
+      week_start: data.week_start,   // Gemini HARUS tahu rentang ini
       week_end: weekEnd,
       goal: {
         title: goal.title,
@@ -41,11 +42,11 @@ const createSuggestion = async (req, res, next) => {
     };
 
     let finalOutput;
-    const raw = await callLLM('suggest', context);
+    const raw = await callLLM('suggest', context, req.user.id);
     finalOutput = validateAIOutput(raw);
     if (!finalOutput) {
       // retry 1x
-      const retry = await callLLM('suggest', context);
+      const retry = await callLLM('suggest', context, req.user.id);
       finalOutput = validateAIOutput(retry);
       if (!finalOutput) {
         logger.warn({ request_id: req.requestId, action: 'ai_suggest_failed' });
@@ -96,8 +97,106 @@ const editRecommendationById = async (req, res, next) => {
   }
 };
 
+const reschedule = async (req, res, next) => {
+  try {
+    const { task_ids } = req.validated;
+
+    if (!task_ids || !Array.isArray(task_ids) || task_ids.length === 0) {
+      return next(new ClientError('task_ids harus berupa array UUID yang tidak kosong'));
+    }
+
+    const overdueTasks = await Tasks.findOverdueTasksByIds(req.user.id, task_ids);
+    const weekStart = getCurrentWeekStart();
+    const weekTasks = await Tasks.findTasksByWeek(req.user.id, weekStart);
+    const todoWeekTasks = weekTasks.filter((t) => t.status === 'todo');
+
+    const profile = await Profiles.getProfile(req.user.id);
+
+    const week = getCurrentWeek();
+    await ProgressSnapshots.recalculateProgress(req.user.id, weekStart);
+    const progress = await ProgressSnapshots.getProgress(req.user.id, week);
+
+    const baseContext = {
+      overdue_tasks: overdueTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        duration_estimate: t.duration_estimate,
+        original_date: t.planned_date,
+      })),
+      current_week_tasks: todoWeekTasks.map((t) => ({
+        planned_date: t.planned_date,
+        planned_slot: t.planned_slot,
+        duration_estimate: t.duration_estimate,
+      })),
+      availability: profile?.availability || {},
+      remaining_capacity:
+        (profile?.weekly_target_hours || 5) - (progress?.completed_hours || 0),
+    };
+
+    function findConflicts(proposed, existing) {
+      const dateStr = (d) => (d instanceof Date ? d.toISOString().split('T')[0] : d);
+      const existingKeys = new Set(existing.map((t) => `${dateStr(t.planned_date)}|${t.planned_slot}`));
+      const proposedKeys = new Set();
+      const conflicts = [];
+      for (const t of proposed) {
+        const key = `${t.planned_date}|${t.planned_slot}`;
+        if (existingKeys.has(key) || proposedKeys.has(key)) {
+          conflicts.push({ date: t.planned_date, slot: t.planned_slot, title: t.title });
+        }
+        proposedKeys.add(key);
+      }
+      return conflicts;
+    }
+
+    const MAX_RETRIES = 2;
+    let validated = null;
+    let usedContext = baseContext;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const raw = await callLLM('reschedule', usedContext, req.user.id);
+      validated = validateAIOutput(raw);
+      if (!validated) continue;
+
+      const conflicts = findConflicts(validated.tasks, todoWeekTasks);
+      if (!conflicts.length) break;
+
+      if (attempt < MAX_RETRIES) {
+        const dateStr = (d) => (d instanceof Date ? d.toISOString().split('T')[0] : d);
+        const occupiedSlots = [...new Set(todoWeekTasks.map((t) => `${dateStr(t.planned_date)} ${t.planned_slot}`))];
+        usedContext = {
+          ...baseContext,
+          occupied_slots: occupiedSlots,
+          conflict_warning: `HINDARI slot yang sudah terisi: ${occupiedSlots.join(', ')}. Jangan jadwalkan task di slot tersebut.`,
+        };
+      }
+
+      validated = null;
+    }
+
+    if (!validated) {
+      return next(
+        new UnprocessableEntityError(
+          'AI tidak dapat menjadwalkan ulang saat ini. Coba lagi.',
+        ),
+      );
+    }
+
+    await AIRecommendations.create({
+      user_id: req.user.id,
+      type: 'reschedule',
+      input_context: JSON.stringify(usedContext),
+      output: JSON.stringify(validated),
+    });
+
+    res.json(validated);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createSuggestion,
   editLatestRecommendation,
   editRecommendationById,
+  reschedule,
 };

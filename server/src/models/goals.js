@@ -23,18 +23,36 @@ class Goals {
   }
 
   async findById(id, userId) {
-    const goalResult = await db.query(
-      'SELECT * FROM goals WHERE id = $1 AND user_id = $2',
+    const result = await db.query(
+      `
+      SELECT
+          g.*,
+          COALESCE(
+              (
+                  SELECT json_agg(
+                      json_build_object(
+                          'id', t.id,
+                          'title', t.title,
+                          'description', t.description,
+                          'duration_estimate', t.duration_estimate,
+                          'planned_date', t.planned_date,
+                          'planned_slot', t.planned_slot,
+                          'status', t.status,
+                          'actual_duration', t.actual_duration,
+                          'completed_at', t.completed_at,
+                          'rationale', t.rationale,
+                          'created_at', t.created_at
+                      )
+                  )
+                  FROM tasks t
+                  WHERE t.goal_id = g.id
+              ),
+              '[]'::json
+          ) AS tasks
+      FROM goals g WHERE g.id = $1 AND g.user_id = $2`,
       [id, userId],
     );
-    const goal = goalResult.rows[0];
-    if (!goal) return null;
-
-    const tasksResult = await db.query(
-      `SELECT * FROM tasks WHERE goal_id = $1 ORDER BY planned_date, planned_slot`,
-      [id],
-    );
-    return { ...goal, tasks: tasksResult.rows };
+    return result.rows[0];
   }
 
   async update({ id, userId, title, description, deadline }) {

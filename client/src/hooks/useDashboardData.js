@@ -31,7 +31,12 @@ export function useDashboardData() {
     ])
       .then(([tasksData, goalsData, userData]) => {
         if (cancelled) return;
-        setTasks(tasksData ?? []);
+        // GET /tasks?week_start returns { week_start, tasks: { 'YYYY-MM-DD': [...] } }
+        const rawTasks = tasksData?.tasks ?? tasksData ?? {};
+        const flatTasks = Array.isArray(rawTasks)
+          ? rawTasks
+          : Object.values(rawTasks).flat();
+        setTasks(flatTasks);
         setGoals(goalsData ?? []);
         setUser(userData);
       })
