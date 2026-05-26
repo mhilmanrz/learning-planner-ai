@@ -1,18 +1,8 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Clock3, CheckCircle2, Target } from 'lucide-react';
 import { api } from '../services/api';
-import { getThisMonday } from '../utils/dateUtils';
+import { getThisMonday, toISOWeek, isoWeekToRange } from '../utils/dateUtils';
 
-// Palet gradien untuk progress bar per-goal (berulang jika >5 goals)
-const BAR_GRADIENTS = [
-  'from-indigo-500 to-purple-500',
-  'from-emerald-500 to-green-400',
-  'from-orange-500 to-yellow-400',
-  'from-pink-500 to-rose-400',
-  'from-sky-500 to-cyan-400',
-];
-
-// ── Skeleton loader ───────────────────────────────────────────
 function SkeletonCard() {
   return (
     <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-6 animate-pulse'>
@@ -27,9 +17,8 @@ function SkeletonCard() {
   );
 }
 
-// ── Circular progress SVG ─────────────────────────────────────
 function CircularProgress({ percent }) {
-  const CIRCUMFERENCE = 327; // 2π × 52
+  const CIRCUMFERENCE = 327;
   const offset = CIRCUMFERENCE - (CIRCUMFERENCE * percent) / 100;
 
   return (
@@ -61,25 +50,24 @@ function CircularProgress({ percent }) {
   );
 }
 
-// ── Progress Page ─────────────────────────────────────────────
 export default function Progress() {
-  const [tasks, setTasks] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [snapshot, setSnapshot] = useState(null);
+  const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    const weekStart = getThisMonday();
+    const week = toISOWeek(getThisMonday());
 
     Promise.all([
-      api.get(`/tasks?week_start=${weekStart}`),
-      api.get('/goals'),
+      api.get(`/progress/weekly?week=${week}`),
+      api.get('/progress/trend'),
     ])
-      .then(([tasksData, goalsData]) => {
+      .then(([snap, trendData]) => {
         if (cancelled) return;
-        setTasks(tasksData ?? []);
-        setGoals(goalsData ?? []);
+        setSnapshot(snap);
+        setTrend(trendData ?? []);
       })
       .catch((err) => { if (!cancelled) setError(err); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -87,42 +75,55 @@ export default function Progress() {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Derived stats ─────────────────────────────────────────
-  const doneTasks  = tasks.filter((t) => t.status === 'done');
-  const totalMinutes = tasks.reduce((sum, t) => sum + (t.duration_estimate ?? 0), 0);
-  const weeklyProgress = tasks.length
-    ? Math.round((doneTasks.length / tasks.length) * 100)
+  const rate = snapshot ? Math.round(snapshot.completion_rate * 100) : 0;
+  const planned = snapshot ? parseFloat(snapshot.planned_hours) : 0;
+  const completed = snapshot ? parseFloat(snapshot.completed_hours) : 0;
+
+  let weekLabel = '';
+  if (snapshot?.week) {
+    const range = isoWeekToRange(snapshot.week);
+    if (range) {
+      const start = new Date(range.start + 'T00:00:00');
+      const end = new Date(range.end + 'T00:00:00');
+      const fmt = (d) => d.toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+      weekLabel = `${snapshot.week} — ${fmt(start)} - ${fmt(end)}`;
+    }
+  }
+
+  const avgRate = trend.length > 0
+    ? Math.round(trend.reduce((s, t) => s + t.rate, 0) / trend.length * 100)
     : 0;
+  const bestWeek = trend.length > 0
+    ? trend.reduce((best, t) => t.rate > best.rate ? t : best, trend[0])
+    : null;
+  const totalPlanned = trend.reduce((s, t) => s + t.planned, 0);
+  const totalCompleted = trend.reduce((s, t) => s + t.completed, 0);
 
   const statCards = [
     {
-      title: 'Jam Belajar',
-      value: loading ? '–' : `${(totalMinutes / 60).toFixed(1)} Jam`,
+      title: 'Terencana',
+      value: loading ? '–' : `${planned.toFixed(1)} Jam`,
       icon: Clock3,
       color: 'text-indigo-400',
       bg: 'bg-indigo-500/20',
     },
     {
-      title: 'Task Selesai',
-      value: loading ? '–' : String(doneTasks.length),
+      title: 'Terselesaikan',
+      value: loading ? '–' : `${completed.toFixed(1)} Jam`,
       icon: CheckCircle2,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/20',
     },
     {
-      title: 'Goals Aktif',
-      value: loading ? '–' : String(goals.length),
+      title: 'Tingkat Penyelesaian',
+      value: loading ? '–' : `${rate}%`,
       icon: Target,
       color: 'text-orange-400',
       bg: 'bg-orange-500/20',
     },
   ];
-
-  // Format tanggal minggu
-  const weekStart = getThisMonday();
-  const weekLabel = new Date(weekStart + 'T00:00:00').toLocaleDateString('id-ID', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
 
   return (
     <div className='min-h-screen bg-[#020617] text-white p-6'>
@@ -131,7 +132,8 @@ export default function Progress() {
       <div className='mb-8'>
         <h1 className='text-3xl font-bold'>Progress Belajar</h1>
         <p className='text-gray-400 mt-2'>
-          Pantau perkembangan belajar Anda — minggu mulai {weekLabel}.
+          Pantau perkembangan belajar Anda.
+          {weekLabel && <span> — {weekLabel}</span>}
         </p>
       </div>
 
@@ -164,30 +166,30 @@ export default function Progress() {
             })}
       </div>
 
-      {/* Main area */}
-      <div className='grid grid-cols-1 xl:grid-cols-3 gap-6'>
+      {/* Main grid */}
+      <div className='grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8'>
 
         {/* Circular Progress */}
         <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center'>
           {loading ? (
             <div className='w-52 h-52 rounded-full bg-slate-800 animate-pulse' />
           ) : (
-            <CircularProgress percent={weeklyProgress} />
+            <CircularProgress percent={rate} />
           )}
           <p className='text-gray-400 mt-6 text-center text-sm'>
             Konsistensi kecil setiap hari menghasilkan progress besar.
           </p>
         </div>
 
-        {/* Per-goal progress bars */}
-        <div className='xl:col-span-2 bg-[#0f172a] border border-white/10 rounded-3xl p-8'>
+        {/* Weekly breakdown */}
+        <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-8'>
           <div className='flex items-center gap-3 mb-8'>
             <div className='bg-indigo-500/20 p-3 rounded-2xl'>
               <TrendingUp className='text-indigo-400' />
             </div>
             <div>
-              <h2 className='text-2xl font-bold'>Statistik Minggu Ini</h2>
-              <p className='text-gray-400 text-sm'>Progress per goal berdasarkan task yang selesai</p>
+              <h2 className='text-2xl font-bold'>Progress Minggu Ini</h2>
+              <p className='text-gray-400 text-sm'>Perbandingan jam belajar terencana dan terselesaikan</p>
             </div>
           </div>
 
@@ -196,50 +198,112 @@ export default function Progress() {
               {[1, 2, 3].map((i) => (
                 <div key={i}>
                   <div className='flex justify-between mb-2'>
-                    <div className='h-4 w-32 bg-slate-700 rounded' />
-                    <div className='h-4 w-10 bg-slate-700 rounded' />
+                    <div className='h-4 w-24 bg-slate-700 rounded' />
+                    <div className='h-4 w-16 bg-slate-700 rounded' />
                   </div>
-                  <div className='w-full h-3 bg-slate-800 rounded-full' />
+                  <div className='w-full h-4 bg-slate-800 rounded-full' />
                 </div>
               ))}
             </div>
-          ) : goals.length === 0 ? (
-            <div className='text-center py-12 text-slate-500'>
-              <p className='text-lg font-medium mb-1'>Belum ada goals</p>
-              <p className='text-sm'>Buat goal pertama kamu di halaman Goals.</p>
-            </div>
           ) : (
             <div className='space-y-6'>
-              {goals.map((goal, idx) => {
-                const pct = goal.task_total > 0
-                  ? Math.round((goal.task_done_count / goal.task_total) * 100)
-                  : 0;
-                const gradient = BAR_GRADIENTS[idx % BAR_GRADIENTS.length];
+              <div>
+                <div className='flex justify-between mb-2'>
+                  <span className='text-gray-300 text-sm font-medium'>Terencana</span>
+                  <span className='font-semibold text-sm text-indigo-400'>{planned.toFixed(1)} Jam</span>
+                </div>
+                <div className='w-full h-4 bg-[#111827] rounded-full overflow-hidden'>
+                  <div className='h-full bg-slate-600 rounded-full' style={{ width: '100%' }} />
+                </div>
+              </div>
 
-                return (
-                  <div key={goal.id}>
-                    <div className='flex items-center justify-between mb-2'>
-                      <span className='text-gray-300 text-sm font-medium truncate pr-4'>
-                        {goal.title}
-                      </span>
-                      <span className='font-semibold text-sm flex-shrink-0'>
-                        {goal.task_done_count ?? 0}/{goal.task_total ?? 0} task
-                        <span className='ml-2 text-slate-400'>({pct}%)</span>
-                      </span>
-                    </div>
-                    <div className='w-full h-3 bg-[#111827] rounded-full overflow-hidden'>
-                      <div
-                        className={`h-full bg-gradient-to-r ${gradient} rounded-full transition-all duration-700`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+              <div>
+                <div className='flex justify-between mb-2'>
+                  <span className='text-gray-300 text-sm font-medium'>Terselesaikan</span>
+                  <span className='font-semibold text-sm text-emerald-400'>{completed.toFixed(1)} Jam</span>
+                </div>
+                <div className='w-full h-4 bg-[#111827] rounded-full overflow-hidden'>
+                  <div
+                    className='h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700'
+                    style={{ width: `${Math.min((completed / (planned || 1)) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className='bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-center justify-between'>
+                <span className='text-gray-300 text-sm'>Tingkat Penyelesaian</span>
+                <span className='text-2xl font-bold text-indigo-400'>{rate}%</span>
+              </div>
             </div>
           )}
         </div>
 
+      </div>
+
+      {/* Trend Section */}
+      <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-8'>
+        <div className='flex items-center gap-3 mb-8'>
+          <div className='bg-emerald-500/20 p-3 rounded-2xl'>
+            <TrendingUp className='text-emerald-400' />
+          </div>
+          <div>
+            <h2 className='text-2xl font-bold'>Tren Progress</h2>
+            <p className='text-gray-400 text-sm'>Riwayat tingkat penyelesaian per minggu</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className='h-48 bg-slate-800 rounded-2xl animate-pulse' />
+        ) : trend.length === 0 ? (
+          <div className='text-center py-12 text-slate-500'>
+            <p className='text-lg font-medium mb-1'>Belum ada data tren</p>
+            <p className='text-sm'>Data progress akan muncul setelah Anda mulai mengerjakan task.</p>
+          </div>
+        ) : (
+          <>
+            {/* Bar chart */}
+            <div className='flex items-end justify-between gap-3 h-44 mb-8'>
+              {trend.slice(-6).map((t) => {
+                const pct = Math.round(t.rate * 100);
+                const barH = Math.max(t.rate, 0.04);
+                return (
+                  <div key={t.week} className='flex flex-col items-center gap-1 flex-1 h-full'>
+                    <span className='text-xs text-gray-400'>{pct}%</span>
+                    <div className='flex-1 w-full flex items-end justify-center'>
+                      <div
+                        className='w-4/5 bg-gradient-to-t from-indigo-500 to-purple-500 rounded-t-md transition-all duration-700'
+                        style={{ height: `${barH * 100}%` }}
+                      />
+                    </div>
+                    <span className='text-xs text-gray-500'>{t.week.replace(/^\d{4}-W/, 'W')}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trend summary stats */}
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              <div className='bg-[#111827] border border-white/5 rounded-2xl p-4'>
+                <p className='text-gray-400 text-xs mb-1'>Rata-rata</p>
+                <p className='text-xl font-bold text-indigo-400'>{avgRate}%</p>
+              </div>
+              <div className='bg-[#111827] border border-white/5 rounded-2xl p-4'>
+                <p className='text-gray-400 text-xs mb-1'>Minggu Terbaik</p>
+                <p className='text-xl font-bold text-emerald-400'>
+                  {bestWeek
+                    ? `${bestWeek.week.replace(/^\d{4}-W/, 'W')}: ${Math.round(bestWeek.rate * 100)}%`
+                    : '–'}
+                </p>
+              </div>
+              <div className='bg-[#111827] border border-white/5 rounded-2xl p-4'>
+                <p className='text-gray-400 text-xs mb-1'>Total Jam</p>
+                <p className='text-xl font-bold text-orange-400'>
+                  {totalCompleted.toFixed(1)} / {totalPlanned.toFixed(1)}
+                </p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
