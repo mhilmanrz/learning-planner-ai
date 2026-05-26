@@ -11,19 +11,21 @@ class Goals {
 
   async getAll(userId) {
     const result = await db.query(
-      `SELECT g.*, (SELECT COUNT(*) FROM tasks t WHERE t.goal_id = g.id)::int as task_total
-       FROM goals g 
-       WHERE g.user_id = $1 
+      `SELECT g.*,
+         (SELECT COUNT(*) FROM tasks t WHERE t.goal_id = g.id)::int AS task_total,
+         (SELECT COUNT(*) FROM tasks t WHERE t.goal_id = g.id AND t.status = 'done')::int AS task_done_count
+       FROM goals g
+       WHERE g.user_id = $1
        ORDER BY g.created_at DESC`,
       [userId],
     );
     return result.rows;
   }
 
-  async findById(id) {
+  async findById(id, userId) {
     const result = await db.query(
       `
-      SELECT 
+      SELECT
           g.*,
           COALESCE(
               (
@@ -44,11 +46,11 @@ class Goals {
                   )
                   FROM tasks t
                   WHERE t.goal_id = g.id
-              ), 
+              ),
               '[]'::json
           ) AS tasks
-      FROM goals g WHERE g.id = $1`,
-      [id],
+      FROM goals g WHERE g.id = $1 AND g.user_id = $2`,
+      [id, userId],
     );
     return result.rows[0];
   }

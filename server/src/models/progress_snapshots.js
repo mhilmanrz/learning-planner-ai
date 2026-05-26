@@ -1,5 +1,5 @@
 const db = require('../utils/db');
-const { getWeekString, getWeekStart, getWeekend } = require('../utils/week');
+const { getWeekString, getWeekStart, getWeekEnd } = require('../utils/week');
 
 class ProgressSnapshots {
   async getProgress(userId, week) {
@@ -21,7 +21,7 @@ class ProgressSnapshots {
   async recalculateProgress(userId, date) {
     const week = getWeekString(date);
     const weekStart = getWeekStart(date);
-    const weekEnd = getWeekend(date);
+    const weekEnd = getWeekEnd(date);
 
     const result = await db.query(
       `SELECT

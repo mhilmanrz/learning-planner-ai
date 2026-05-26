@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { getThisMonday, snapToMonday } from '../utils/dateUtils';
 import GoalCard from '../components/GoalCard.jsx';
 import {
   Target,
   Plus,
   TrendingUp,
+  CalendarDays,
 } from 'lucide-react';
 
 export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [title, setTitle] = useState('');
+  const [weekStart, setWeekStart] = useState(getThisMonday);
+  const [createError, setCreateError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,13 +24,24 @@ export default function Goals() {
 
   async function handleCreate(e) {
     e.preventDefault();
+    setCreateError(null);
+    setSubmitting(true);
+    try {
+      const newGoal = await api.post('/goals', { title });
+      setGoals([newGoal, ...goals]);
+      setTitle('');
+      // Langsung navigasi ke halaman detail dengan week_start → trigger AI suggestion flow
+      navigate(`/goals/${newGoal.id}?week_start=${weekStart}`);
+    } catch (err) {
+      setCreateError(err.message || 'Gagal membuat goal. Coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-    const newGoal = await api.post('/goals', { title });
-
-    setGoals([newGoal, ...goals]);
-    setTitle('');
-    // Langsung navigasi ke halaman detail → trigger AI suggestion flow
-    navigate(`/goals/${newGoal.id}`);
+  function handleWeekStartChange(e) {
+    // Snap ke Senin otomatis jika user memilih bukan Senin
+    setWeekStart(snapToMonday(e.target.value));
   }
 
 
@@ -46,23 +62,61 @@ export default function Goals() {
       <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-6 mb-8'>
         <form
           onSubmit={handleCreate}
-          className='flex flex-col md:flex-row gap-4'
+          className='flex flex-col gap-4'
         >
+          {/* Row 1: judul goal */}
           <input
+            id='goal-title-input'
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder='Contoh: Menguasai React Hooks'
             required
-            className='flex-1 bg-[#111c3b] border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-indigo-500'
+            className='flex-1 bg-[#111c3b] border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition-colors'
           />
 
-          <button
-            type='submit'
-            className='bg-indigo-500 hover:bg-indigo-400 transition-all rounded-2xl px-6 py-3 font-semibold flex items-center justify-center gap-2'
-          >
-            <Plus size={18} />
-            Tambah Goal
-          </button>
+          {/* Row 2: week_start picker + tombol */}
+          <div className='flex flex-col sm:flex-row gap-4'>
+            <div className='flex-1 flex flex-col gap-1.5'>
+              <label
+                htmlFor='goal-week-start'
+                className='text-xs text-slate-400 flex items-center gap-1.5'
+              >
+                <CalendarDays size={12} />
+                Mulai minggu
+              </label>
+              <input
+                id='goal-week-start'
+                type='date'
+                value={weekStart}
+                onChange={handleWeekStartChange}
+                required
+                className='w-full bg-[#111c3b] border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition-colors text-sm
+                  [color-scheme:dark]'
+              />
+              {weekStart && (
+                <p className='text-[11px] text-slate-500'>
+                  Minggu dimulai: <span className='text-indigo-400'>{weekStart}</span>
+                </p>
+              )}
+            </div>
+
+          {/* Error feedback */}
+          {createError && (
+            <p className='text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2'>
+              ⚠️ {createError}
+            </p>
+          )}
+
+            <button
+              id='create-goal-btn'
+              type='submit'
+              disabled={submitting}
+              className='sm:self-end bg-indigo-500 hover:bg-indigo-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all rounded-2xl px-6 py-3 font-semibold flex items-center justify-center gap-2 whitespace-nowrap'
+            >
+              <Plus size={18} />
+              {submitting ? 'Menyimpan...' : 'Tambah Goal'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -94,7 +148,15 @@ export default function Goals() {
               </p>
 
               <h2 className='text-3xl font-bold mt-2'>
-                Konsisten
+                {goals.length > 0
+                  ? (() => {
+                      const totalDone = goals.reduce((s, g) => s + (g.task_done_count ?? 0), 0);
+                      const totalAll  = goals.reduce((s, g) => s + (g.task_total ?? 0), 0);
+                      return totalAll > 0
+                        ? `${Math.round((totalDone / totalAll) * 100)}%`
+                        : '–';
+                    })()
+                  : '–'}
               </h2>
             </div>
 

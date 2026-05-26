@@ -6,12 +6,12 @@ const ProgressSnapshots = require('../models/progress_snapshots');
 const { NotFoundError, UnprocessableEntityError, ClientError } = require('../exceptions');
 const { callLLM, validateAIOutput } = require('../services/llm');
 const logger = require('../utils/logger');
-const { getCurrentWeekStart, getCurrentWeek } = require('../utils/week');
+const { getWeekEnd, getCurrentWeekStart, getCurrentWeek } = require('../utils/week');
 
 const createSuggestion = async (req, res, next) => {
   try {
     const data = req.validated;
-    const goal = await Goals.findById(data.goal_id);
+    const goal = await Goals.findById(data.goal_id, req.user.id);
     if (!goal) {
       return next(new NotFoundError('Goal tidak ditemukan'));
     }
@@ -21,9 +21,12 @@ const createSuggestion = async (req, res, next) => {
       return next(new NotFoundError('Profile tidak ditemukan'));
     }
 
-    const existingTasks = await Tasks.findByWeekStart(req.user.id, data.week_start);
+    const weekEnd = getWeekEnd(new Date(data.week_start));
+    const existingTasks = await Tasks.findByWeekStart(req.user.id, data.week_start, weekEnd);
 
     const context = {
+      week_start: data.week_start,   // Gemini HARUS tahu rentang ini
+      week_end: weekEnd,
       goal: {
         title: goal.title,
         description: goal.description,

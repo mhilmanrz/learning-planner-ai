@@ -1,93 +1,172 @@
 import { useState } from 'react';
-import ReactCalendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import WeeklyCalendar from '../components/WeeklyCalendar';
+import { X, Clock, Sun, Sunset, Moon, CheckCircle2, SkipForward } from 'lucide-react';
+import { api } from '../services/api';
 
-export default function Calendar() {
-  const [date, setDate] = useState(new Date());
+const SLOT_META = {
+  morning:   { label: 'Pagi',  Icon: Sun,    color: 'text-amber-400',   bg: 'bg-amber-500/10' },
+  afternoon: { label: 'Siang', Icon: Sunset, color: 'text-orange-400',  bg: 'bg-orange-500/10' },
+  evening:   { label: 'Malam', Icon: Moon,   color: 'text-indigo-400',  bg: 'bg-indigo-500/10' },
+};
 
-  const tasks = [
-    {
-      title: 'Belajar React Hooks',
-      date: '2026-05-08',
-      type: 'Frontend',
-    },
-    {
-      title: 'Setup Express Routes',
-      date: '2026-05-10',
-      type: 'Backend',
-    },
-    {
-      title: 'Belajar PostgreSQL',
-      date: '2026-05-12',
-      type: 'Database',
-    },
-  ];
+const STATUS_LABEL = { todo: 'Belum', done: 'Selesai', skip: 'Dilewati' };
+const STATUS_COLOR  = { todo: 'text-slate-400', done: 'text-emerald-400', skip: 'text-slate-500' };
 
-  const selectedDate = date.toISOString().split('T')[0];
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = String(dateStr).split('T')[0].split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+}
 
-  const todayTasks = tasks.filter(
-    (task) => task.date === selectedDate
+/* ── Task Detail Drawer ── */
+function TaskDrawer({ task, onClose, onStatusChange }) {
+  const [updating, setUpdating] = useState(false);
+  const slot = SLOT_META[task.planned_slot] ?? SLOT_META.morning;
+  const SlotIcon = slot.Icon;
+
+  async function updateStatus(status) {
+    setUpdating(true);
+    try {
+      await api.patch(`/tasks/${task.id}/status`, { status });
+      onStatusChange?.(task.id, status);
+      onClose();
+    } catch {
+      /* silent — biarkan user coba lagi */
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  return (
+    <div
+      className='fixed inset-0 z-50 flex items-end sm:items-center justify-center'
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className='absolute inset-0 bg-black/60 backdrop-blur-sm' />
+
+      {/* Panel */}
+      <div
+        className='relative z-10 w-full sm:max-w-md bg-[#0f172a] border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl'
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className='absolute top-4 right-4 p-1.5 rounded-xl hover:bg-white/10 text-slate-400 transition-all'
+        >
+          <X size={16} />
+        </button>
+
+        {/* Slot badge */}
+        <div className={`inline-flex items-center gap-1.5 ${slot.bg} rounded-full px-3 py-1 text-xs font-medium ${slot.color}`}>
+          <SlotIcon size={11} />
+          {slot.label}
+        </div>
+
+        {/* Title */}
+        <h3 className='text-lg font-bold text-white pr-6 leading-snug'>{task.title}</h3>
+
+        {/* Description */}
+        {task.description && (
+          <p className='text-slate-400 text-sm leading-relaxed'>{task.description}</p>
+        )}
+
+        {/* Rationale */}
+        {task.rationale && (
+          <div className='bg-amber-500/5 border border-amber-500/15 rounded-xl px-4 py-3'>
+            <p className='text-amber-300/80 text-xs leading-relaxed'>💡 {task.rationale}</p>
+          </div>
+        )}
+
+        {/* Meta row */}
+        <div className='flex flex-wrap gap-2 text-xs'>
+          <span className='inline-flex items-center gap-1.5 bg-white/5 rounded-full px-3 py-1 text-slate-300'>
+            <Clock size={11} /> {task.duration_estimate} menit
+          </span>
+          <span className='inline-flex items-center gap-1.5 bg-white/5 rounded-full px-3 py-1 text-slate-400'>
+            📅 {formatDate(task.planned_date)}
+          </span>
+          <span className={`inline-flex items-center gap-1 bg-white/5 rounded-full px-3 py-1 ${STATUS_COLOR[task.status]}`}>
+            {STATUS_LABEL[task.status]}
+          </span>
+        </div>
+
+        {/* Actions */}
+        {task.status === 'todo' && (
+          <div className='flex gap-2 pt-1'>
+            <button
+              disabled={updating}
+              onClick={() => updateStatus('done')}
+              className='flex-1 flex items-center justify-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-50'
+            >
+              <CheckCircle2 size={15} />
+              Tandai Selesai
+            </button>
+            <button
+              disabled={updating}
+              onClick={() => updateStatus('skip')}
+              className='flex items-center justify-center gap-2 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/20 text-slate-400 rounded-xl px-4 py-2.5 text-sm transition-all disabled:opacity-50'
+            >
+              <SkipForward size={15} />
+              Lewati
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
+}
+
+/* ── Page ── */
+export default function Calendar() {
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [, forceUpdate] = useState(0);          // trigger re-render WeeklyCalendar after status change
+
+  function handleStatusChange() {
+    setSelectedTask(null);
+    forceUpdate(n => n + 1);
+  }
 
   return (
     <div className='min-h-screen bg-[#020617] text-white p-6'>
-      <div className='mb-8'>
-        <h1 className='text-3xl font-bold'>Kalender Belajar</h1>
-        <p className='text-gray-400 mt-2'>
-          Kelola jadwal belajar dan task harian Anda.
+      {/* Page header */}
+      <div className='mb-6'>
+        <h1 className='text-2xl font-bold'>Kalender Mingguan</h1>
+        <p className='text-slate-400 text-sm mt-1'>
+          Lihat dan kelola jadwal belajar per minggu
         </p>
       </div>
 
-      <div className='grid grid-cols-1 xl:grid-cols-3 gap-6'>
-        <div className='xl:col-span-2 bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-lg'>
-          <ReactCalendar
-            onChange={setDate}
-            value={date}
-            className='w-full border-none rounded-2xl overflow-hidden'
-          />
-        </div>
-
-        <div className='bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-lg'>
-          <h2 className='text-xl font-semibold mb-4'>
-            Task Hari Ini
-          </h2>
-
-          <div className='mb-5'>
-            <p className='text-sm text-gray-400'>
-              Tanggal dipilih
-            </p>
-
-            <p className='text-lg font-semibold mt-1'>
-              {date.toDateString()}
-            </p>
-          </div>
-
-          <div className='space-y-4'>
-            {todayTasks.length > 0 ? (
-              todayTasks.map((task, index) => (
-                <div
-                  key={index}
-                  className='bg-[#111c3b] border border-indigo-500/20 rounded-2xl p-4'
-                >
-                  <div className='flex items-center justify-between'>
-                    <h3 className='font-semibold'>
-                      {task.title}
-                    </h3>
-
-                    <span className='text-xs px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300'>
-                      {task.type}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className='bg-[#111c3b] border border-dashed border-white/10 rounded-2xl p-6 text-center text-gray-400'>
-                Tidak ada task pada tanggal ini.
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Legend */}
+      <div className='flex items-center gap-4 mb-5 text-xs text-slate-500'>
+        <span className='flex items-center gap-1.5'>
+          <span className='w-2.5 h-2.5 rounded-sm border border-white/10 bg-white/5' /> Belum
+        </span>
+        <span className='flex items-center gap-1.5'>
+          <span className='w-2.5 h-2.5 rounded-sm border border-emerald-500/40 bg-emerald-500/10' /> Selesai
+        </span>
+        <span className='flex items-center gap-1.5'>
+          <span className='w-2.5 h-2.5 rounded-sm border border-white/5 bg-white/3 opacity-40' /> Dilewati
+        </span>
+        <span className='flex items-center gap-1.5 ml-auto'>
+          <span className='w-2.5 h-2.5 rounded-sm border border-indigo-500/40 bg-indigo-500/5' /> Hari ini
+        </span>
       </div>
+
+      {/* Weekly calendar */}
+      <WeeklyCalendar onTaskClick={setSelectedTask} />
+
+      {/* Task detail drawer */}
+      {selectedTask && (
+        <TaskDrawer
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onStatusChange={handleStatusChange}
+        />
+      )}
     </div>
   );
 }

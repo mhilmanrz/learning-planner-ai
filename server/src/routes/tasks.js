@@ -1,6 +1,4 @@
-// TODO: Implementasikan task endpoints.
-// Lihat modul Cycle 1 (POST — accept flow) dan Cycle 2 (GET, PATCH status).
-// POST /, GET /, PATCH /:id/status
+// POST /, GET /, PATCH /:id/status, PATCH /:id
 const express = require('express');
 const router = express.Router();
 
@@ -13,18 +11,5 @@ router.post('/', authenticate, validate(taskPayloadSchema), createTask);
 router.get('/', authenticate, getTasksByWeekStart);
 router.patch('/:id/status', authenticate, editStatus);
 router.patch('/:id', authenticate, validate(taskUpdatePayloadSchema), editTask);
-
-// router.get('/', authenticate, async (req, res, next) => {
-//   try {
-//     const { goal_id: goalId } = req.query;
-//     if (!goalId) {
-//       return res.json([]);
-//     }
-//     const tasks = await Tasks.findByGoalId(goalId);
-//     res.json(tasks);
-//   } catch (error) {
-//     next(error);
-//   }
-// });
 
 module.exports = router;

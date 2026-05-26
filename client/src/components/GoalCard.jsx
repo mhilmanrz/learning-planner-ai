@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Target, CalendarDays, ListChecks, ArrowRight } from 'lucide-react';
+import { getThisMonday } from '../utils/dateUtils';
 
 export default function GoalCard({ id, title, deadline, taskTotal }) {
   const navigate = useNavigate();
+  const weekStart = getThisMonday();
 
   return (
     <div className='flex flex-col gap-3'>
@@ -33,7 +35,7 @@ export default function GoalCard({ id, title, deadline, taskTotal }) {
       {/* CTA */}
       <button
         id={`goal-detail-${id}`}
-        onClick={() => navigate(`/goals/${id}`)}
+        onClick={() => navigate(`/goals/${id}?week_start=${weekStart}`)}
         className='mt-1 flex items-center justify-center gap-1.5 w-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 hover:text-indigo-300 rounded-xl px-3 py-2 text-xs font-medium transition-all'
       >
         {taskTotal > 0 ? 'Lihat Detail' : 'Lihat Detail & Saran AI'}
@@ -42,4 +44,5 @@ export default function GoalCard({ id, title, deadline, taskTotal }) {
     </div>
   );
 }
+
 

@@ -64,10 +64,35 @@ class Tasks {
     return result.rows;
   }
 
-  async findByGoalId(goalId) {
+  /** Semua task milik goal — tanpa filter ownership (dipakai internal) */
+  async findByGoalId(goalId, userId) {
+    if (userId !== undefined) {
+      // Dengan ownership check via JOIN
+      const result = await db.query(
+        `SELECT t.* FROM tasks t
+          INNER JOIN goals g ON g.id = t.goal_id
+          WHERE t.goal_id = $1 AND g.user_id = $2
+          ORDER BY t.planned_date ASC, t.planned_slot ASC`,
+        [goalId, userId],
+      );
+      return result.rows;
+    }
     const result = await db.query(
       'SELECT * FROM tasks WHERE goal_id = $1 ORDER BY planned_date ASC',
       [goalId],
+    );
+    return result.rows;
+  }
+
+  /** Task milik satu goal dalam rentang minggu tertentu */
+  async findByGoalAndWeek(goalId, userId, weekStart, weekEnd) {
+    const result = await db.query(
+      `SELECT t.* FROM tasks t
+        INNER JOIN goals g ON g.id = t.goal_id
+        WHERE t.goal_id = $1 AND g.user_id = $2
+          AND t.planned_date BETWEEN $3 AND $4
+        ORDER BY t.planned_date ASC, t.planned_slot ASC`,
+      [goalId, userId, weekStart, weekEnd],
     );
     return result.rows;
   }
@@ -133,6 +158,7 @@ class Tasks {
     return result.rows[0];
   }
 
+  /** Update status task — dari main: set completed_at dan actual_duration jika status 'done' */
   async updateStatus({ id, status, actual_duration, duration_estimate }) {
     let updateQuery, updateParams;
     if (status === 'done') {

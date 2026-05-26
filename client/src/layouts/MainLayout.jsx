@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { api } from '../services/api';
 
 const navItems = [
   {
@@ -43,7 +44,15 @@ const navItems = [
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api.get('/auth/me').then(setProfile).catch(() => {});
+  }, []);
+
+  const displayName = profile?.email?.split('@')[0] ?? '...';
+  const initial = displayName[0]?.toUpperCase() ?? '?';
 
   function handleLogout() {
     localStorage.removeItem('token');
@@ -134,11 +143,11 @@ export default function MainLayout() {
           {/* User avatar */}
           <div className='flex items-center gap-3'>
             <div className='text-right hidden sm:block'>
-              <p className='text-sm font-medium text-white'>Hilman</p>
+              <p className='text-sm font-medium text-white'>{displayName}</p>
               <p className='text-xs text-slate-400'>Peserta Bootcamp</p>
             </div>
             <div className='w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white'>
-              H
+              {initial}
             </div>
           </div>
         </header>

@@ -3,7 +3,7 @@ const cors = require('cors');
 
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler.js');
-const { authLimiter, aiLimiter } = require('./middleware/rateLimiter.js');
+const { aiLimiter } = require('./middleware/rateLimiter.js');
 
 const healthRoutes = require('./routes/health');
 const metricsRoutes = require('./routes/metrics');
@@ -21,7 +21,7 @@ app.use(requestLogger);
 
 app.use('/health', requestLogger, healthRoutes);
 app.use('/metrics', requestLogger, metricsRoutes);
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/tasks', taskRoutes);
