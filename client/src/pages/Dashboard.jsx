@@ -19,12 +19,31 @@ function DonutChart({ percent }) {
 
   return (
     <div className='relative w-40 h-40 flex-shrink-0'>
-      <svg className='w-full h-full -rotate-90' viewBox='0 0 120 120'>
+      <svg
+        role='progressbar'
+        aria-label='progress minggu ini'
+        aria-live='polite'
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className='w-full h-full -rotate-90'
+        viewBox='0 0 120 120'
+      >
         {/* Track */}
-        <circle cx='60' cy='60' r={r} fill='none' stroke='#1e293b' strokeWidth='12' />
+        <circle
+          cx='60'
+          cy='60'
+          r={r}
+          fill='none'
+          stroke='#1e293b'
+          strokeWidth='12'
+        />
         {/* Fill */}
         <circle
-          cx='60' cy='60' r={r} fill='none'
+          cx='60'
+          cy='60'
+          r={r}
+          fill='none'
           stroke='url(#donutGrad)'
           strokeWidth='12'
           strokeLinecap='round'
@@ -153,7 +172,7 @@ export default function Dashboard() {
       label: 'Jam Belajar Minggu Ini',
       value: `${stats.totalHours} jam`,
       icon: (
-        <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
+        <svg aria-hidden className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
           <path strokeLinecap='round' strokeLinejoin='round' d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' />
         </svg>
       ),
@@ -164,7 +183,7 @@ export default function Dashboard() {
       label: 'Task Selesai Hari Ini',
       value: todayTasks.length > 0 ? `${stats.todayDone} / ${stats.todayTotal}` : '–',
       icon: (
-        <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
+        <svg aria-hidden className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
           <path strokeLinecap='round' strokeLinejoin='round' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
         </svg>
       ),
@@ -175,7 +194,7 @@ export default function Dashboard() {
       label: 'Goals Aktif',
       value: `${stats.goalsCount} goals`,
       icon: (
-        <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
+        <svg aria-hidden className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={1.8}>
           <path strokeLinecap='round' strokeLinejoin='round' d='M13 10V3L4 14h7v7l9-11h-7z' />
         </svg>
       ),
@@ -289,6 +308,7 @@ export default function Dashboard() {
                 >
                   {/* Checkbox */}
                   <button
+                    aria-label="task checkbox"
                     onClick={() => task.status === 'todo' && markDone(task.id)}
                     className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors
                       ${task.status === 'done'

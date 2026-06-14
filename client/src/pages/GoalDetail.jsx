@@ -653,12 +653,12 @@ export default function GoalDetail() {
               const slot = SLOT_META[task.planned_slot] || SLOT_META.morning;
               const SlotIcon = slot.Icon;
               const isManual = task.source === 'manual';
-              const isFocused = index === focusedTaskIndex;
+              {/* const isFocused = index === focusedTaskIndex; */}
 
               return (
                 <li
                   key={task.id}
-                  tabIndex={isFocused ? 0 : -1}
+                  tabIndex={0}
                   ref={el => { taskRefs.current[index] = el; }}
                   role='button'
                   aria-expanded={isExpanded}
@@ -669,7 +669,9 @@ export default function GoalDetail() {
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${isManual ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
 
                   <div
+                    role="button"
                     className='flex-1 min-w-0 cursor-pointer'
+                    tabIndex={0}
                     onClick={() => { setFocusedTaskIndex(index); toggleExpand(task.id); }}
                   >
                     <div className='flex justify-between items-start gap-2'>

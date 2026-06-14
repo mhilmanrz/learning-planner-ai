@@ -23,7 +23,7 @@ function CircularProgress({ percent }) {
 
   return (
     <div className='relative w-52 h-52'>
-      <svg className='w-full h-full rotate-[-90deg]' viewBox='0 0 120 120'>
+      <svg aria-hidden className='w-full h-full rotate-[-90deg]' viewBox='0 0 120 120'>
         <circle cx='60' cy='60' r='52' stroke='#1e293b' strokeWidth='10' fill='none' />
         <circle
           cx='60' cy='60' r='52'
