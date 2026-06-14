@@ -222,7 +222,7 @@ export default function WeeklyCalendar({ onTaskClick }) {
               >
                 {/* Day header */}
                 <div className={`px-2 py-2 text-center border-b ${isToday ? 'border-indigo-500/30' : 'border-white/5'}`}>
-                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${isWeekend ? 'text-slate-400' : 'text-slate-300'}`}>
                     {label}
                   </p>
                   <p className={`text-sm font-bold mt-0.5 ${isToday ? 'text-indigo-400' : 'text-white'}`}>
@@ -253,7 +253,7 @@ export default function WeeklyCalendar({ onTaskClick }) {
                               className={`w-full text-left rounded-lg border px-2 py-1.5 text-[10px] leading-tight transition-all ${STATUS_STYLE[task.status] ?? STATUS_STYLE.todo}`}
                             >
                               <p className='font-medium text-white line-clamp-2'>{task.title}</p>
-                              <p className='text-slate-500 mt-0.5 flex items-center gap-1'>
+                              <p className='text-slate-400 mt-0.5 flex items-center gap-1'>
                                 <Clock size={8} aria-hidden='true' />
                                 {task.duration_estimate}m
                               </p>

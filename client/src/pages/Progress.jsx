@@ -286,7 +286,7 @@ export default function Progress() {
                         style={{ height: `${barH * 100}%` }}
                       />
                     </div>
-                    <span className='text-xs text-gray-500'>{t.week.replace(/^\d{4}-W/, 'W')}</span>
+                    <span className='text-xs text-gray-400'>{t.week.replace(/^\d{4}-W/, 'W')}</span>
                   </div>
                 );
               })}

@@ -97,7 +97,7 @@ export default function Goals() {
             placeholder='Contoh: Menguasai React Hooks'
             required
             className='w-full bg-[#111c3b] border border-white/10 rounded-2xl px-4 py-3 text-white
-                       placeholder-slate-500 outline-none focus:border-indigo-500/60 transition-colors'
+                       placeholder-slate-400 outline-none focus:border-indigo-500/60 transition-colors'
           />
 
           {/* Toggle extra fields */}

@@ -308,7 +308,7 @@ export default function Dashboard() {
                     <p className={`text-sm font-medium truncate ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-white'}`}>
                       {task.title}
                     </p>
-                    <p className='text-xs text-slate-500 mt-0.5'>{task.duration_estimate} menit</p>
+                    <p className='text-xs text-slate-400 mt-0.5'>{task.duration_estimate} menit</p>
                   </div>
 
                   {/* Slot badge */}
@@ -359,7 +359,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   {goal.deadline && (
-                    <p className='text-xs text-slate-500 mt-1'>
+                    <p className='text-xs text-slate-400 mt-1'>
                       Deadline: {new Date(goal.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   )}
