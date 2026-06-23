@@ -73,8 +73,9 @@ jobs:
       #     echo "$RAILWAY_SERVICE_NAME" | sed 's/./& /g'
 
       - name: Deploy to Railway
+        # Jalankan dari root repo agar Railway bisa menemukan subfolder server/
+        # (sesuai Root Directory setting di Railway dashboard)
         run: railway up --detach --service ${{ secrets.RAILWAY_SERVICE_NAME }}
-        working-directory: server
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
