@@ -42,9 +42,29 @@ async function request(path, options = {}) {
     window.location.href = '/login';
   }
 
-  if (!res.ok) throw new Error((await res.json()).error || 'Request gagal');
+  if (!res.ok) {
+    let message;
+    try {
+      const body = await res.json();
+      message = body.error;
+    } catch {
+      message = res.statusText;
+    }
+    throw new Error(message || 'Request gagal');
+  }
   if (res.status === 204) return null;
   return res.json();
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -54,4 +74,19 @@ export const api = {
   patch: (path, body) =>
     request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),
+  download: async (path, filename) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+      }
+      throw new Error('Download gagal');
+    }
+    downloadBlob(await res.blob(), filename);
+  },
 };
