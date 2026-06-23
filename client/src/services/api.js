@@ -6,7 +6,7 @@
 // console.log(BASE_URL)
 
 // [BARU - baca dari env variable yang di-inject saat build oleh Vite]
-export const BASE_URL = import.meta.env.VITE_API_URL ?? '';
+export const BASE_URL = import.meta.env.VITE_API_URL + "/api" ?? '';
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
   const res = await fetch(`${BASE_URL}${path}`, {
