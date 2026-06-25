@@ -12,12 +12,10 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        // Local dev: forward ke backend native (localhost)
-        // Di production (Netlify), proxy ini tidak aktif — VITE_API_URL yang dipakai
-        target: 'https://learning-planner-ai-production.up.railway.app',
+        // Gunakan nama service Docker, bukan localhost
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },
   },
 });
-
